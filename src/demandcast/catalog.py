@@ -96,7 +96,7 @@ class Venue:
 VENUES: list[Venue] = [
     Venue("ballpark", "Blake Street Ballpark", 0.6, 0.5, "baseball"),
     Venue("stadium", "Platte Field", -1.8, -0.9, "football"),
-    Venue("arena", "Larimer Arena", 0.9, -0.5, "arena"),
+    Venue("arena", "Platte Arena", 0.9, -0.5, "arena"),
     Venue("amphitheater", "Red Mesa Amphitheater", -14.0, -16.0, "amphitheater"),
     Venue("civic", "Civic Green", 1.5, -1.0, "festival"),
 ]
