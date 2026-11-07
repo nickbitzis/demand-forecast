@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prep Planner</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --text: #1c2330; --muted: #5d6878; --border: #dde2e9;
+  --track: #e8ebf0; --accent: #2f6fdb; --band: rgba(47, 111, 219, 0.16); --good: #11804f; --good-soft: #e3f5ec;
+  --warn: #8a5a00; --warn-soft: #fff4dc; --bad: #b42318; --bad-soft: #fde8e6;
+  --radius: 10px; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #11151c; --panel: #181e27; --text: #e6eaf0; --muted: #9aa5b5; --border: #2a3340;
+    --track: #232b37; --accent: #6c9cf0; --band: rgba(108, 156, 240, 0.22); --good: #4ccb8f; --good-soft: #15302a;
+    --warn: #f3c46b; --warn-soft: #3a2e14; --bad: #ff8a7a; --bad-soft: #3b1d1b;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html, body { overflow-x: hidden; }
+body { margin: 0; background: var(--bg); color: var(--text); font-size: 14px; }
+header { padding: 14px 24px; display: flex; align-items: center; gap: 10px 18px; flex-wrap: wrap; border-bottom: 1px solid var(--border); background: var(--panel); }
+h1 { font-size: 18px; margin: 0; }
+.picker { display: flex; flex-wrap: wrap; gap: 6px; }
+.picker button { font: inherit; font-weight: 600; color: var(--muted); background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 4px 12px; cursor: pointer; }
+.picker button.on { color: var(--panel); background: var(--accent); border-color: var(--accent); }
+.grow { flex: 1; }
+h2 { font-size: 13px; margin: 0 0 10px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+main { padding: 16px 24px 32px; display: grid; gap: 16px; grid-template-columns: repeat(12, minmax(0, 1fr)); max-width: 1500px; }
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; min-width: 0; }
+.c12 { grid-column: span 12; } .c8 { grid-column: span 8; } .c7 { grid-column: span 7; } .c6 { grid-column: span 6; } .c5 { grid-column: span 5; } .c4 { grid-column: span 4; } .c3 { grid-column: span 3; }
+@media (max-width: 900px) { .c8, .c7, .c6, .c5, .c4, .c3 { grid-column: span 12; } main { padding: 12px 16px; } header { padding: 12px 16px; } }
+@media (min-width: 560px) and (max-width: 900px) { .c3 { grid-column: span 6; } }
+.kpi .v { font-size: 26px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.kpi .l { color: var(--muted); margin-top: 2px; }
+.scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 6px 8px; border-top: 1px solid var(--border); white-space: nowrap; }
+th { color: var(--muted); font-weight: 600; border-top: 0; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tr.best td { font-weight: 650; }
+tr.group td { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; padding-top: 12px; }
+.chip { font-size: 12px; padding: 1px 8px; border-radius: 10px; background: var(--track); color: var(--muted); display: inline-block; }
+.chip.bad { background: var(--bad-soft); color: var(--bad); } .chip.warn { background: var(--warn-soft); color: var(--warn); }
+.chip.good { background: var(--good-soft); color: var(--good); }
+.good { color: var(--good); } .bad { color: var(--bad); }
+svg text { fill: var(--muted); font-size: 11px; }
+.chart { width: 100%; height: auto; display: block; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: 12px; color: var(--muted); }
+.legend i { display: inline-block; width: 12px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+p.summary { line-height: 1.55; margin: 0; }
+.supplier { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 10px; }
+.supplier:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
+.supplier .head { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Ridgeline Bowl Co. prep planner</h1>
+  <div class="picker" id="picker" role="tablist" aria-label="Location"></div>
+  <span class="grow"></span>
+  <span class="muted small" id="when"></span>
+</header>
+<main id="main"><div class="panel c12 muted">Loading...</div></main>
+<script>
+const $ = (s) => document.querySelector(s);
+const usd = (v, d = 0) => (v < 0 ? "-" : "") + "$" + Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+const num = (v, d = 0) => (v ?? 0).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+const pct = (v, d = 1) => (v == null ? "" : (v * 100).toFixed(d) + "%");
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const cache = {};
+const api = (p) => (cache[p] ??= fetch(p).then((r) => { if (!r.ok) throw new Error(p + " " + r.status); return r.json(); }));
+const MODEL_NAMES = { seasonal_naive: "Seasonal naive", moving_average: "7-day moving average", gbm_bottom_up: "GBM, bottom-up", gbm_top_down: "GBM, top-down", gbm_mint_lite: "GBM, MinT-lite" };
+const POLICY_NAMES = { gut_feel: "Gut feel (last week's sales)", forecast_mean: "Forecast mean", newsvendor: "Newsvendor quantile" };
+const SITE = { store: "store", office: "Tech Center lot", brewery: "Brewery row", baseball: "ballpark", football: "football stadium", arena: "arena", amphitheater: "amphitheater", festival: "festival", closed: "closed" };
+
+function niceTicks(lo, hi, n = 4) {
+  const span = hi - lo || 1, step0 = span / n, mag = 10 ** Math.floor(Math.log10(step0));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= step0);
+  const out = []; for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(v);
+  return out;
+}
+
+// Hourly forecast: one y-axis (item units), a line for the mean and a band for the 90% interval.
+function bandChart(hours) {
+  const W = 760, H = 260, L = 44, R = 12, T = 12, B = 28;
+  const n = hours.length, y1 = Math.max(1, ...hours.map((h) => h.hi)) * 1.08;
+  const X = (i) => L + (i + 0.5) / n * (W - L - R), Y = (v) => T + (1 - v / y1) * (H - T - B);
+  let g = "";
+  for (const t of niceTicks(0, y1)) g += `<line x1="${L}" x2="${W - R}" y1="${Y(t)}" y2="${Y(t)}" stroke="${css("--border")}"/><text x="${L - 6}" y="${Y(t) + 4}" text-anchor="end">${num(t)}</text>`;
+  hours.forEach((h, i) => { if (i % 2 === 0 || window.innerWidth > 700) g += `<text x="${X(i)}" y="${H - 8}" text-anchor="middle">${h.hour.slice(0, 2)}</text>`; });
+  const top = hours.map((h, i) => `${X(i).toFixed(1)} ${Y(h.hi).toFixed(1)}`), bot = hours.map((h, i) => `${X(i).toFixed(1)} ${Y(h.lo).toFixed(1)}`).reverse();
+  g += `<path d="M${top.join("L")}L${bot.join("L")}Z" fill="${css("--band")}" stroke="none"/>`;
+  g += `<path d="M${hours.map((h, i) => `${X(i).toFixed(1)} ${Y(h.mean).toFixed(1)}`).join("L")}" fill="none" stroke="${css("--accent")}" stroke-width="2.2"/>`;
+  hours.forEach((h, i) => { g += `<circle cx="${X(i)}" cy="${Y(h.mean)}" r="3" fill="${css("--accent")}"><title>${h.hour}: ${num(h.mean)} items (90% ${num(h.lo)} to ${num(h.hi)})</title></circle>`; });
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Forecast by hour">${g}</svg>
+    <div class="legend"><span><i style="background:${css("--accent")}"></i>forecast, item units per hour</span><span><i style="background:${css("--band")}"></i>90% interval</span><span>hour of day on the x-axis</span></div>`;
+}
+
+let current = new URLSearchParams(location.search).get("location") || "lodo";
+
+async function draw() {
+  const L = await api("/api/locations");
+  $("#picker").innerHTML = L.locations.map((l) => `<button role="tab" class="${l.id === current ? "on" : ""}" data-id="${l.id}">${esc(l.name)}</button>`).join("");
+  $("#picker").querySelectorAll("button").forEach((b) => b.onclick = () => { current = b.dataset.id; history.replaceState(null, "", "?location=" + current); draw(); });
+  $("#when").textContent = `Data through ${L.today}. Planning for ${L.tomorrow}.`;
+  const q = "?location=" + current;
+  const [hr, prep, orders, labor, brief, bt, sim, fc] = await Promise.all([
+    api("/api/forecast/hourly" + q), api("/api/prep" + q), api("/api/orders" + q), api("/api/labor" + q),
+    api("/api/briefing" + q), api("/api/backtest"), api("/api/simulation"), api("/api/forecast" + q + "&days=7"),
+  ]);
+  const w = L.weather_tomorrow;
+  const ev = L.events_ahead.filter((e) => e.date === L.tomorrow);
+  const closed = !hr.open;
+  $("#main").innerHTML = `
+  <div class="panel c3 kpi"><div class="v">${closed ? "Closed" : num(hr.daily.mean)}</div><div class="l">${closed ? "no service tomorrow" : `items forecast tomorrow (90%: ${num(hr.daily.lo)} to ${num(hr.daily.hi)})`}</div></div>
+  <div class="panel c3 kpi"><div class="v">${w.temp_max.toFixed(0)} C</div><div class="l">high tomorrow, ${w.precip_mm.toFixed(0)} mm precipitation, ${w.snow_cm.toFixed(0)} cm snow${w.holiday ? ", " + esc(w.holiday) : ""}</div></div>
+  <div class="panel c3 kpi"><div class="v">${usd(prep.expected_cost)}</div><div class="l">expected waste plus lost margin with this prep list (gut feel: ${usd(prep.gut_expected_cost)})</div></div>
+  <div class="panel c3 kpi"><div class="v">${num(labor.labor_hours)} h</div><div class="l">suggested labor, ${labor.peak_staff} people at the peak</div></div>
+
+  <div class="panel c7"><h2>Tomorrow by hour${hr.site !== "store" ? ", parked at " + esc(SITE[hr.site]) : ""}</h2>${closed ? `<p class="muted">Closed tomorrow.</p>` : bandChart(hr.hours)}
+    <p class="muted small">${ev.length ? "Events tomorrow: " + ev.map((e) => `${esc(e.venue_name)} (${esc(e.kind)}, ${num(e.attendance)} at ${Math.floor(e.start)}:${String(Math.round((e.start % 1) * 60)).padStart(2, "0")})`).join(", ") + ". " : ""}The daily forecast is split into 15-minute slots with the site's recent profile; event uplift follows the learned pre-event shape. The band uses conformal residuals from the hourly backtest.</p></div>
+  <div class="panel c5"><h2>Morning briefing <span class="chip">${esc(brief.provider)}${brief.fallback ? ", fallback" : ""}</span></h2><p class="summary">${esc(brief.text)}</p>
+    <p class="muted small">Written only from computed numbers. Any number not in the facts is rejected.</p>
+    <h2 style="margin-top:16px">Next 7 days</h2><div class="scroll"><table><thead><tr><th>Date</th><th>Site</th><th class="num">Forecast</th><th class="num">90% interval</th></tr></thead><tbody>
+    ${fc.daily.map((d) => `<tr><td>${d.date}</td><td>${d.open ? esc(SITE[d.site]) : "closed"}${d.event_pressure >= 0.5 && d.site === "store" ? ' <span class="chip warn">event</span>' : ""}</td><td class="num">${d.open ? num(d.mean) : ""}</td><td class="num">${d.open ? `${num(d.lo)} to ${num(d.hi)}` : ""}</td></tr>`).join("")}</tbody></table></div></div>
+
+  <div class="panel c7"><h2>Prep list for ${esc(prep.date)}</h2><div class="scroll"><table><thead><tr><th>Item</th><th class="num">Forecast</th><th class="num">90% interval</th><th class="num">Margin</th><th class="num">Food cost</th><th class="num">Critical ratio</th><th class="num">Prep</th><th class="num">Gut feel</th></tr></thead><tbody>
+    ${prep.items.map((r) => `<tr><td>${esc(r.name)}</td><td class="num">${num(r.forecast, 1)}</td><td class="num">${num(r.lo)} to ${num(r.hi)}</td><td class="num">${usd(r.margin, 2)}</td><td class="num">${usd(r.food_cost, 2)}</td><td class="num">${r.critical_ratio.toFixed(2)}</td><td class="num"><b>${r.prep}</b></td><td class="num muted">${r.gut_feel}</td></tr>`).join("") || `<tr><td colspan="8" class="muted">Nothing to prep.</td></tr>`}</tbody></table></div>
+    <p class="muted small">Prep = the smallest quantity covering the critical ratio of demand, where critical ratio = margin / (margin + food cost). A lost sale costs more than a wasted portion for every item, so prep sits above the forecast.</p></div>
+  <div class="panel c5"><h2>Ingredient prep</h2><div class="scroll"><table><thead><tr><th>Ingredient</th><th class="num">Prepared</th><th class="num">Raw</th><th class="num">Yield</th></tr></thead><tbody>
+    ${prep.ingredients.map((r) => `<tr><td>${esc(r.name)}</td><td class="num">${num(r.prepared, 1)} ${esc(r.unit)}</td><td class="num">${num(r.raw, 1)} ${esc(r.unit)}</td><td class="num">${r.yield}</td></tr>`).join("")}</tbody></table></div>
+    <p class="muted small">Recipe quantities per portion times the prep list, divided by yield (cooked chicken per raw kg, cooked rice per dry kg).</p></div>
+
+  <div class="panel c7"><h2>Supplier orders</h2>
+    ${orders.next.map((o) => `<div class="supplier"><div class="head"><b>${esc(o.supplier_name)}</b><span class="muted small">order ${o.order_date}${o.delivery_date ? ", delivered " + o.delivery_date : ""}, lead ${o.lead_days} day${o.lead_days > 1 ? "s" : ""}, orders ${o.order_days.join(" ")}</span><span class="grow"></span><b>${usd(o.total)}</b></div>
+      ${o.lines.length ? `<div class="scroll"><table><thead><tr><th>Ingredient</th><th class="num">On hand</th><th class="num">Need</th><th class="num">Cases</th><th class="num">Quantity</th><th class="num">Cost</th><th>Note</th></tr></thead><tbody>
+      ${o.lines.map((x) => `<tr><td>${esc(x.name)}</td><td class="num">${num(x.on_hand_now, 1)}</td><td class="num">${num(x.need, 1)}</td><td class="num">${x.cases} x ${x.case_pack}</td><td class="num">${num(x.qty, 1)} ${esc(x.unit)}</td><td class="num">${usd(x.cost)}</td><td class="small ${x.flag.startsWith("projected") ? "bad" : "muted"}">${esc(x.flag)}</td></tr>`).join("")}</tbody></table></div>` : `<div class="muted small">Nothing to order on this run.</div>`}</div>`).join("")}
+    <p class="muted small">Need = usage until the next delivery plus safety stock (95% service), minus stock projected at arrival. Capped at what can be used within shelf life, then rounded to whole cases.</p></div>
+  <div class="panel c5"><h2>Staffing suggestion</h2><div class="scroll"><table><thead><tr><th>Station</th><th>Shift</th><th class="num">Hours</th></tr></thead><tbody>
+    ${labor.shifts.map((s) => `<tr><td>${esc(s.station)}</td><td>${s.start} to ${s.end}</td><td class="num">${s.hours}</td></tr>`).join("") || `<tr><td colspan="3" class="muted">Closed.</td></tr>`}</tbody></table></div>
+    <p class="muted small">Erlang C per 15-minute slot: 85% of tickets start within 60 seconds at the register and 90 to 120 seconds at the other stations. Greedy 4 to 8 hour shifts cover every slot.</p></div>
+
+  <div class="panel c12"><h2>Backtest: item x location level, ${bt.origins.length} rolling origins from ${bt.origins[0]} to ${bt.origins[bt.origins.length - 1]}</h2>
+    <div class="scroll"><table><thead><tr><th>Horizon</th><th>Model</th><th class="num">WAPE</th><th class="num">MASE</th><th class="num">Bias</th><th class="num">90% coverage</th><th class="num">vs seasonal naive</th></tr></thead><tbody>
+    ${bt.horizons.map((H) => `<tr class="group"><td colspan="7">${H} day${H > 1 ? "s" : ""} ahead</td></tr>` + bt.main.filter((r) => r.level === "bottom" && r.H === H).map((r) => `<tr class="${r.model === bt.model ? "best" : ""}"><td></td><td>${esc(MODEL_NAMES[r.model] || r.model)}${r.model === bt.model ? ' <span class="chip good">chosen</span>' : ""}</td><td class="num">${pct(r.wape)}</td><td class="num">${r.mase.toFixed(2)}</td><td class="num">${(r.bias > 0 ? "+" : "") + pct(r.bias)}</td><td class="num">${pct(r.coverage)}</td><td class="num ${r.improvement_vs_snaive > 0 ? "good" : r.improvement_vs_snaive < 0 ? "bad" : ""}">${r.model === "seasonal_naive" ? "" : (r.improvement_vs_snaive > 0 ? "-" : "+") + pct(Math.abs(r.improvement_vs_snaive)) + " WAPE"}</td></tr>`).join("")).join("")}</tbody></table></div>
+    <p class="muted small">WAPE = sum of absolute errors over sum of actuals. MASE scales errors by each series' typical weekly change. The gate in CI fails unless the chosen model beats seasonal naive at 7 days: ${pct(bt.gate.model_wape)} vs ${pct(bt.gate.snaive_wape)}.</p></div>
+
+  <div class="panel c6"><h2>Reconciliation, WAPE by level</h2><div class="scroll"><table><thead><tr><th>Horizon</th><th>Method</th><th class="num">Item</th><th class="num">Location</th><th class="num">Total</th></tr></thead><tbody>
+    ${bt.reconciliation.map((r) => `<tr class="${r.method === bt.chosen_reconciliation ? "best" : ""}"><td>${r.H}d</td><td>${esc(r.method.replace("_", "-"))}</td><td class="num">${pct(r.bottom)}</td><td class="num">${pct(r.location)}</td><td class="num">${pct(r.total)}</td></tr>`).join("")}</tbody></table></div></div>
+  <div class="panel c6"><h2>Event days vs normal days, location level</h2><div class="scroll"><table><thead><tr><th>Day type</th><th>Horizon</th><th class="num">Seasonal naive</th><th class="num">GBM</th><th class="num">Coverage</th></tr></thead><tbody>
+    ${bt.by_event.map((r) => `<tr><td>${esc(r.day_type)}</td><td>${r.H}d</td><td class="num">${pct(r.snaive)}</td><td class="num">${pct(r.gbm)}</td><td class="num">${pct(r.coverage)}</td></tr>`).join("")}</tbody></table></div>
+    <h2 style="margin-top:16px">Cold start, item level WAPE</h2><div class="scroll"><table><thead><tr><th>Segment</th><th>Horizon</th><th class="num">Seasonal naive</th><th class="num">GBM alone</th><th class="num">GBM + cold start</th></tr></thead><tbody>
+    ${bt.cold_start.map((r) => `<tr><td>${esc(r.segment)}</td><td>${r.H}d</td><td class="num">${pct(r.snaive)}</td><td class="num">${pct(r.gbm_no_cold_start)}</td><td class="num">${pct(r.gbm_cold_start)}</td></tr>`).join("")}</tbody></table></div></div>
+
+  <div class="panel c12"><h2>Simulated month, all four sites, ${sim.dates[0]} to ${sim.dates[1]}</h2><div class="scroll"><table><thead><tr><th>Prep policy</th><th class="num">Waste</th><th class="num">Lost sales (revenue)</th><th class="num">Lost margin</th><th class="num">Waste + lost margin</th><th class="num">Fill rate</th><th class="num">Wasted units</th><th class="num">Stockout item-days</th></tr></thead><tbody>
+    ${sim.policies.map((p) => `<tr class="${p.total_cost === Math.min(...sim.policies.map((x) => x.total_cost)) ? "best" : ""}"><td>${esc(POLICY_NAMES[p.policy])}</td><td class="num">${usd(p.waste_cost)}</td><td class="num">${usd(p.lost_revenue)}</td><td class="num">${usd(p.lost_margin)}</td><td class="num">${usd(p.total_cost)}</td><td class="num">${pct(p.fill_rate)}</td><td class="num">${num(p.waste_units)}</td><td class="num">${num(p.stockout_days)}</td></tr>`).join("")}</tbody></table></div>
+    <p class="muted small">Each evening the kitchen preps tomorrow under each policy, using one-day-ahead forecasts with models retrained weekly. Waste is valued at food cost. Lost sales are demand above the prep quantity.</p></div>`;
+}
+draw().catch((e) => { $("#main").innerHTML = `<div class="panel c12 bad">Failed to load: ${esc(e.message)}</div>`; });
+</script>
+</body>
+</html>

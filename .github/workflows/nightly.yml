@@ -1,0 +1,25 @@
+# Nightly retrain, as it would run in production: after close, rebuild every forecast, prep list, and order
+# suggestion from the day's sales, gate it on the backtest, and publish the artifacts. Here the data is synthetic,
+# so the job regenerates it; in production the first step would pull yesterday's sales from the POS export.
+name: nightly-retrain
+
+on:
+  schedule:
+    - cron: "30 8 * * *"  # 08:30 UTC, 01:30 in Denver during daylight time, after every site has closed
+  workflow_dispatch:
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Backtest gate
+        run: uv run --python 3.12 demandcast backtest --gate --markdown "$GITHUB_STEP_SUMMARY"
+      - name: Retrain and plan
+        run: uv run --python 3.12 demandcast --data-dir data/nightly train
+      - uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-${{ github.run_id }}
+          path: data/nightly/artifacts.json
+          retention-days: 14

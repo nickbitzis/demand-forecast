@@ -1,0 +1,47 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Lint
+        run: |
+          uvx ruff check .
+          uvx ruff format --check .
+      - name: Test
+        run: uv run --python 3.12 --group dev pytest -q
+
+  backtest-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Backtest and gate on 7-day WAPE vs seasonal naive
+        run: |
+          uv run --python 3.12 demandcast backtest --quick --gate \
+            --markdown "$GITHUB_STEP_SUMMARY" --json data/ci/backtest.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backtest
+          path: data/ci/backtest.json
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t demand-forecast:ci .
+      - name: Smoke test the API
+        run: |
+          docker run -d --name demand -p 8824:8824 demand-forecast:ci
+          for i in $(seq 1 90); do curl -sf http://localhost:8824/healthz && break; sleep 2; done
+          curl -sf "http://localhost:8824/api/prep?location=lodo"
+          curl -sf http://localhost:8824/metrics | grep demandcast_backtest_wape
+          docker rm -f demand
